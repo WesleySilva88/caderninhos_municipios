@@ -1,0 +1,103 @@
+---
+title: "Radiografia do Município"
+author: "Confederação Nacional dos Municípios"
+date: "25 de janeiro de 2017"
+output: 
+  html_document:
+  toc: true
+runtime: shiny
+params:
+  cod_munsel: 4314902
+---
+
+```{r include = F, eval = T}
+# source("global.r")
+cod_munsel <- params$cod_munsel %>% as.character
+```
+
+# Radiografia do município
+
+## Localização e vizinhança
+
+Antes de mais nada, é importante vizualizar o local onde o município está localizado. Conhecer as condições locais é entender a dinâmica do local que administra.
+
+```{r localviz, echo = F, results = 'asis', fig.width = 12, fig.height = 6}
+## filtrando indicadores
+filtro_ind <- indicadores[eixo == "radiografia do município" & tema == "Localização na divisão territorial",
+                          list(coluna, indicador)]
+setkey(filtro_ind,coluna)
+
+## filtrando base
+filtro_base <- dtb_viz[codigo_mun7 %in% cod_munsel,] %>% select(one_of(filtro_ind[,coluna]))
+
+## preparando o print
+paste0("* **",
+       filtro_ind[names(filtro_base),indicador],
+       "**: ",
+       filtro_base
+       ,collapse = "\n") %>% cat
+
+## municípios vizinhos
+filtro_viz <- dtb_viz[codigo_mun7 %in% cod_munsel,nome_mun_viz]
+cat(paste0("\n* **Municípios vizinhos**:\n",filtro_viz,"\n"))
+
+
+## filtrando shape
+cod_viz <- filtro_viz <- dtb_viz[codigo_mun7 %in% cod_munsel,codigo_mun7_viz %>% str_split(";") %>% unlist]
+shp_munsel <- subset(shp_mun,codigo_mun7 %in% cod_viz)
+shp_munsel@data$tipo <- ifelse(shp_munsel@data$codigo_mun7 %in% cod_munsel,"selecionado","vizinho")
+
+# Define UI for application that draws a histogram
+ui_rmd <- shinyUI(fluidPage(
+
+   # Application title
+   titlePanel("município no mapa"),
+
+   # Sidebar with a slider input for number of bins
+   sidebarPanel(
+     mainPanel(
+       leafletOutput("mapa_viz", width = 800, height = 400)
+       )
+   )
+))
+
+# Define server logic required to draw a histogram
+server_rmd <- shinyServer(function(input, output) {
+
+   output$mapa_viz <- renderLeaflet({
+     
+     # criando escala de cores
+     reds <- colorFactor(palette(),
+                         domain = shp_munsel$tipo,
+                         na.color = NA)
+     
+     leaflet(data = shp_munsel) %>% 
+       addTiles %>%
+       addPolygons(weight = 3.6,
+                   fillColor = ~reds(tipo),
+                   color = "black",
+                   fillOpacity = 0.6, 
+                   smoothFactor = 0.5,
+                   popup = paste0(shp_munsel$NM_MUNICIP)) %>%
+       addLegend(position = "bottomright", pal = reds,values = ~tipo, title = "") }) 
+   })
+
+# Run the application
+shinyApp(ui = ui_rmd, server = server_rmd, options = list(width = 1200, heigh = 1200))
+```
+
+
+
+
+## População
+
+## Geografia
+
+# Infraestrutura
+
+## Extensão Viária
+
+## Saneamento
+
+## Energia 
+
