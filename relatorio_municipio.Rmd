@@ -136,9 +136,46 @@ graf_selec +
   ggtitle("Cobertura vegetal nativa:\nObservado X vizinhos")
 ```
 
-
-
 ## População
+
+```{r pop, echo = F, results = 'hide', message = F, warning = F}
+## filtrando indicadores
+filtro_ind <- indicadores[eixo == "radiografia do município" & 
+                            tema == "População",
+                          list(coluna, indicador)]
+
+## agregando base com valores médios
+filtro_base_ag <- filtro_base[,lapply(.SD, mean,na.rm = T),
+                              by  = c("selecionado","ano"),
+                              .SDcols = filtro_ind[,coluna]]
+setorder(filtro_base_ag,selecionado,ano)
+
+## população estimada/observada
+filtro_base_ag[,pop := ifelse(is.na(pop_estimada),pop_contada,pop_estimada)]
+
+## contagem mais antiga
+pop_cont_ult <- filtro_base_ag[!is.na(pop_contada),list(selecionado,ano,pop_contada)]
+ano_min_sel <- pop_cont_ult[selecionado == T,min(ano)]
+ano_min_viz <- pop_cont_ult[selecionado == T,min(ano)]
+
+## base do gráfico para os selecionados
+graf_selec <- ggplot(filtro_base_ag[selecionado == T,])
+
+gc()
+```
+
+A população de `r params$nome_mun` no último censo era de `r filtro_base_ag[selecionado == T & ano == 2010,pop_contada] %>% formatar_num()` habitantes, enquanto a população média dos municípios vizinhos é de `r filtro_base_ag[selecionado == F & ano == 2010,pop_contada] %>% formatar_num()`. Em `r ano_min_sel` a população de `r params$nome_mun` era de `r pop_cont_ult[ano == ano_min_sel,pop_contada] %>% formatar_num(0)`.
+
+O gráfico a seguir evidencia a evolução da população.
+
+```{r pop_graf, echo = F, fig.width= 8 , fig.height = 6}
+# evolução da cobertura vegetal nativa
+graf_selec + 
+  geom_line(aes(x = ano, y = pop)) + 
+  labs(y = "População estimada/contada",
+       fill = "Município selecionado?") + 
+  ggtitle("Evolução da população")
+```
 
 # Infraestrutura
 
