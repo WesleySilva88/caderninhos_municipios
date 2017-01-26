@@ -8,42 +8,59 @@ output:
 runtime: shiny
 params:
   cod_munsel: 4314902
+  nome_mun: ""
 ---
 
 ```{r include = F, eval = T}
-# source("global.r")
+source("global.r")
 cod_munsel <- params$cod_munsel %>% as.character
+
+# filtrando base de localização
+filtro_loc <- dtb_viz[codigo_mun7 %in% cod_munsel,]
+
+# ano de surgimento
+ano_surg_mun <- str_extract(filtro_loc[,ano_surg],"[0-9]{4}")
+
+# filtrando base de vizinhança
+filtro_viz <- dtb_viz[codigo_mun7 %in% cod_munsel,nome_mun_viz]
+cod_viz <- dtb_viz[codigo_mun7 %in% cod_munsel,codigo_mun7_viz]  %>% 
+  str_split(";") %>% 
+  unlist
+
+# filtrando base de indicadores
+filtro_base <- indicadores_municipais[codigo_mun7 %in% cod_viz & ano >= ano_surg_mun,]
+filtro_base[, selecionado := codigo_mun7 %in% cod_munsel]
 ```
 
 # Radiografia do município
 
+Antes de mais nada, é importante vizualizar o local onde o município está localizado. Conhecer as condições locais, além da dinâmica da ação do homem sobre o território, é entender o primeiro passo para compreender a conjuntura do local que administra.
+
 ## Localização e vizinhança
 
-Antes de mais nada, é importante vizualizar o local onde o município está localizado. Conhecer as condições locais é entender a dinâmica do local que administra.
+O municipio de `r params$nome_mun` surgiu em `r ano_surg_mun`. A localização na divisão territorial brasileira segue abaixo.
 
 ```{r localviz, echo = F, results = 'asis', fig.width = 12, fig.height = 6}
 ## filtrando indicadores
-filtro_ind <- indicadores[eixo == "radiografia do município" & tema == "Localização na divisão territorial",
+filtro_ind <- indicadores[eixo == "radiografia do município" & 
+                            tema == "Localização na divisão territorial",
                           list(coluna, indicador)]
 setkey(filtro_ind,coluna)
 
-## filtrando base
-filtro_base <- dtb_viz[codigo_mun7 %in% cod_munsel,] %>% select(one_of(filtro_ind[,coluna]))
+# no filtro de localização, selecionando colunas dos metadados
+filtro_loc <- filtro_loc %>% select(one_of(filtro_ind[,coluna]))
 
 ## preparando o print
 paste0("* **",
-       filtro_ind[names(filtro_base),indicador],
+       filtro_ind[names(filtro_loc),indicador],
        "**: ",
-       filtro_base
+       filtro_loc
        ,collapse = "\n") %>% cat
 
 ## municípios vizinhos
-filtro_viz <- dtb_viz[codigo_mun7 %in% cod_munsel,nome_mun_viz]
 cat(paste0("\n* **Municípios vizinhos**:\n",filtro_viz,"\n"))
 
-
 ## filtrando shape
-cod_viz <- filtro_viz <- dtb_viz[codigo_mun7 %in% cod_munsel,codigo_mun7_viz %>% str_split(";") %>% unlist]
 shp_munsel <- subset(shp_mun,codigo_mun7 %in% cod_viz)
 shp_munsel@data$tipo <- ifelse(shp_munsel@data$codigo_mun7 %in% cod_munsel,"selecionado","vizinho")
 
@@ -86,12 +103,42 @@ server_rmd <- shinyServer(function(input, output) {
 shinyApp(ui = ui_rmd, server = server_rmd, options = list(width = 1200, heigh = 1200))
 ```
 
+## Geografia
+
+```{r geo, echo = F, results = 'hide', message = F, warning = F}
+## filtrando indicadores
+filtro_ind <- indicadores[eixo == "radiografia do município" & 
+                            tema == "Geografia",
+                          list(coluna, indicador)]
+
+## agregando base com valores médios
+filtro_base_ag <- filtro_base[,lapply(.SD, mean,na.rm = T),
+                              by  = c("selecionado","ano"),
+                              .SDcols = filtro_ind[,coluna]]
+setorder(filtro_base_ag,selecionado,ano)
+
+## base do gráfico para os selecionados
+graf_selec <- ggplot(filtro_base_ag)
+
+gc()
+```
+
+`r params$nome_mun` tem uma área de `r filtro_base_ag[selecionado == T & !is.na(area_mun),tail(area_mun,1)] %>% formatar_num(2)` km², dos quais `r x <- filtro_base_ag[!is.na(cob_vegetal_nat) & selecionado,list(ano,cob_vegetal_nat)];x[,tail(cob_vegetal_nat,1)] %>% formatar_num(2)`% são de cobertura vegetal nativa em `r x[,tail(ano,1)]`. Nos municípios vizinhos, esses valores têm média de `r filtro_base_ag[selecionado == F & !is.na(area_mun),tail(area_mun,1)] %>% formatar_num(2)`km² e `r y <- filtro_base_ag[!is.na(cob_vegetal_nat) & !selecionado,list(ano,cob_vegetal_nat)];y[,tail(cob_vegetal_nat,1)] %>% formatar_num(2)`%, respectivamente.
+
+O gráfico a seguir evidencia a evolução desta cobertura.
+
+```{r geo_graf, echo = F, fig.width= 8 , fig.height = 6}
+# evolução da cobertura vegetal nativa
+graf_selec + 
+  geom_bar(aes(x = ano,fill = selecionado,weight = cob_vegetal_nat),position = "dodge") + 
+  labs(y = "Cobertura vegetal nativa",
+       fill = "Município selecionado?") + 
+  ggtitle("Cobertura vegetal nativa:\nObservado X vizinhos")
+```
 
 
 
 ## População
-
-## Geografia
 
 # Infraestrutura
 

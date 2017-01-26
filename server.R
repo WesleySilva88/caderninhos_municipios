@@ -42,7 +42,8 @@ shinyServer(function(input, output,session) {
     codmun_sel <- mun_sel() %>% as.integer()
     HTML(markdownToHTML(render("relatorio_municipio.Rmd", 
                                params = list(
-                                 cod_munsel = codmun_sel
+                                 cod_munsel = codmun_sel,
+                                 nome_mun = input$mun
                                  ),
                                encoding = "utf8"
                                ),

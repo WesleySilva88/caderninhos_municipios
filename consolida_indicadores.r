@@ -1,13 +1,11 @@
 library(tcltk)
-library(taRifx)
 library(dplyr)
-library(plyr)
 library(data.table)
 library(googlesheets)
 
 
 ## diretórios
-dir.fonte <- "C:\\Users\\wesley.jesus\\Documents"
+dir.fonte <- "/home/wesley/Dropbox/Trabalhos Gerais/Fontes de dados"
 dir.cons  <- file.path(dir.fonte,"Bases Consolidadas")
 
 ## url da planilha de indicadores
@@ -30,7 +28,7 @@ for(tab in indicadores[,tabela %>% unique]){
   arquivo <- file.path(dir.cons,
                        paste0(tab,".csv"))
   
-  df <- try(fread(arquivo),silent = T)
+  df <- try(fread(arquivo, dec = ","),silent = T)
   if(!inherits(df,"try-error")){
     assign(tab,df)
   }
@@ -99,4 +97,4 @@ dtb <- indicadores_municipais[,lapply(.SD,tail,1),
 
 # salvando painel anual
 save(list = c("indicadores_municipais","indicadores","dtb"),
-     file = "caderninhos_municipios/indicadores_municipais.rda")
+     file = "indicadores_municipais.rda")

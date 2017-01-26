@@ -5,7 +5,9 @@ library(markdown)
 library(rmarkdown)
 library(leaflet)
 library(stringr)
+library(ggplot2)
 
+source("metodos.R")
 
 ## carregando indicadores ----
 load("indicadores_municipais.rda")
